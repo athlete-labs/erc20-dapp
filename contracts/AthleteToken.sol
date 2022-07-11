@@ -3,21 +3,24 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
-contract AthleteToken is ERC20 {
+contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
 
+    uint public initialSupply = 1000000000e8;
     uint public tokenTotalStake;
     uint public difficultyPerBlock;
-    uint public initialSupply = 100000000000000000;
+    uint public athletePool;
 
     mapping(address => mapping(uint => Stake)) public stakeSubscriptions;
 
     struct Stake {
-        uint256 amount;
-        uint256 blockId;
+        uint amount;
+        uint blockId;
     }
 
-    constructor() ERC20("Athlete Token", "ATH") {
+    constructor() ERC20("Athlete Token", "ATH") ERC20Permit("Athlete Token") {
         _mint(msg.sender, initialSupply);
     }
 
@@ -25,29 +28,51 @@ contract AthleteToken is ERC20 {
         return 8;
     }
 
-    function subscribeStake(uint256 _amount) public {
+    function subscribeStake(uint _amount) public {
         require(balanceOf(msg.sender) >= _amount);
-        require(_amount > 10000000000);
+        require(_amount > (100e8));
         require(stakeSubscriptions[msg.sender][block.number].amount == 0);
         _burn(msg.sender, _amount);
         tokenTotalStake += _amount;
         stakeSubscriptions[msg.sender][block.number] = Stake(_amount, block.number);
-        difficultyPerBlock = ((tokenTotalStake * 100) + (initialSupply / 5)) / 200;
+        difficultyPerBlock = (initialSupply + (tokenTotalStake * 10)) / 100;
     }
 
     function unsubscribeStake(uint _blockNumber) public {
-        uint256 amountStake = stakeSubscriptions[msg.sender][_blockNumber].amount;
-        uint256 qtdBlocks = block.number - _blockNumber;
+        uint amountStake = stakeSubscriptions[msg.sender][_blockNumber].amount;
+        uint timeBlocks = (block.number - _blockNumber) * 10 ** decimals();
         require(amountStake > 0);
         require(block.number > _blockNumber);
         tokenTotalStake -= amountStake;
-        amountStake += (amountStake / (difficultyPerBlock / (qtdBlocks * 100000000)));
-        _mint(msg.sender, amountStake);
+        uint rewards = amountStake / (difficultyPerBlock / timeBlocks);
+        athletePool += rewards;
+        _mint(msg.sender, amountStake + rewards);
         stakeSubscriptions[msg.sender][_blockNumber].amount = 0;
     }
 
-    function balanceStaked(address wallet, uint _blockNumber) public view returns (uint256) {
+    function balanceStaked(address wallet, uint _blockNumber) public view returns (uint) {
         return stakeSubscriptions[wallet][_blockNumber].amount;
+    }
+
+    function _afterTokenTransfer(address from, address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._afterTokenTransfer(from, to, amount);
+    }
+
+    function _mint(address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._mint(to, amount);
+    }
+
+    function _burn(address account, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._burn(account, amount);
     }
 
 }
