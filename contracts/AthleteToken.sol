@@ -12,13 +12,12 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
     uint public tokenTotalStake;
     uint public difficultyPerBlock;
     uint public athletePool;
-    uint public coustNewOperator = 100;
-    uint public coustNewScout = 200;
-    uint public coustNewLevel = 50;
-
-    Worker[] public workers;
+    uint public coustNewOperator = 100e8;
+    uint public coustNewScout = 200e8;
+    uint public coustNewLevel = 50e8;
 
     mapping(address => mapping(uint => Stake)) public stakeSubscriptions;
+    mapping(address => Worker) public workers;
 
     enum roles { operator, scout }
 
@@ -29,7 +28,6 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
 
     struct Worker {
         roles role;
-        address account;
         uint8 level;
     }
 
@@ -63,22 +61,30 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
         stakeSubscriptions[msg.sender][_blockNumber].amount = 0;
     }
 
-    function balanceStaked(address wallet, uint _blockNumber) public view returns (uint) {
-        return stakeSubscriptions[wallet][_blockNumber].amount;
+    function balanceStaked(address _wallet, uint _blockNumber) public view returns (uint) {
+        return stakeSubscriptions[_wallet][_blockNumber].amount;
     }
 
-    function registerWorker(address wallet, uint8 kind) public {
+    function registerWorker(address _wallet, uint8 kind) public {
         require(kind > 0 && kind < 3);
         if (kind == 1) {
-            _burn(wallet, coustNewOperator);
+            _burn(_wallet, coustNewOperator);
             athletePool += coustNewOperator / 2;
-            workers.push(Worker(roles.operator, wallet, 0));
+            workers[_wallet] = Worker(roles.operator, 0);
         }
         if (kind == 2) {
-            _burn(wallet, coustNewScout);
+            _burn(_wallet, coustNewScout);
             athletePool += coustNewOperator / 2;
-            workers.push(Worker(roles.scout, wallet, 0));
+            workers[_wallet] = Worker(roles.scout, 0);
         }
+    }
+
+    function getWorker(address _wallet) public view returns (Worker memory worker) {
+        return workers[_wallet];
+    }
+
+    function upLevelWorker(address _wallet) public {
+        workers[_wallet].level += 1;
     }
 
     function _afterTokenTransfer(address from, address to, uint256 amount)
