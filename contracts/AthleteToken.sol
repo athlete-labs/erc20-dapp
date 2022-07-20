@@ -12,12 +12,13 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
     uint public tokenTotalStake;
     uint public difficultyPerBlock;
     uint public athletePool;
-    uint public coustNewOperator = 100e8;
-    uint public coustNewScout = 200e8;
-    uint public coustNewLevel = 50e8;
+    uint public costNewOperator = 100e8;
+    uint public costNewScout = 200e8;
+    uint public costUpLevel = 50e8;
 
     mapping(address => mapping(uint => Stake)) public stakeSubscriptions;
     mapping(address => Worker) public workers;
+    mapping(address => Athlete) public athletes;
 
     enum roles { operator, scout }
 
@@ -29,6 +30,12 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
     struct Worker {
         roles role;
         uint8 level;
+        bool banned;
+    }
+
+    struct Athlete {
+        string performance;
+        bool banned;
     }
 
     constructor() ERC20("Athlete Token", "ATH") ERC20Permit("Athlete Token") {
@@ -68,15 +75,27 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
     function registerWorker(address _wallet, uint8 kind) public {
         require(kind > 0 && kind < 3);
         if (kind == 1) {
-            _burn(_wallet, coustNewOperator);
-            athletePool += coustNewOperator / 2;
-            workers[_wallet] = Worker(roles.operator, 0);
+            _burn(_wallet, costNewOperator);
+            athletePool += costNewOperator / 2;
+            workers[_wallet] = Worker(roles.operator, 0, false);
         }
         if (kind == 2) {
-            _burn(_wallet, coustNewScout);
-            athletePool += coustNewOperator / 2;
-            workers[_wallet] = Worker(roles.scout, 0);
+            _burn(_wallet, costNewScout);
+            athletePool += costNewScout / 2;
+            workers[_wallet] = Worker(roles.scout, 0, false);
         }
+    }
+
+    function registerAthlete(address _wallet) public {
+        athletes[_wallet] = Athlete("", false);
+    }
+
+    function banWorker(address _wallet) public {
+        workers[_wallet].banned = true;
+    }
+
+    function banAthltete(address _wallet) public {
+        athletes[_wallet].banned = true;
     }
 
     function getWorker(address _wallet) public view returns (Worker memory worker) {
@@ -84,7 +103,13 @@ contract AthleteToken is ERC20, ERC20Permit, ERC20Votes {
     }
 
     function upLevelWorker(address _wallet) public {
+        _burn(_wallet, costUpLevel);
+        athletePool += costUpLevel / 2;
         workers[_wallet].level += 1;
+    }
+
+    function evaluateAthlete(address _wallet, string memory _performance) public {
+        athletes[_wallet].performance = _performance;
     }
 
     function _afterTokenTransfer(address from, address to, uint256 amount)
